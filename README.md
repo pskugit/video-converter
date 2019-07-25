@@ -45,7 +45,7 @@ This mode has no parameters to specify.
 
 ## Meta
 
-Philipp Skudlik
+Philipp Skudlik 
 
 [https://github.com/pskugit](https://github.com/pskugit/)
 

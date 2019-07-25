@@ -1,8 +1,6 @@
 # Video Converter
 > converts Folder2Video and Video2Folder
 
-![](/images/videomaker_logo.png?raw=true "Optional Title")
-
 This is a small UI program used to convert a video file into a folder containingimages of all frames.
 Or to convert an image folder into a video file given the set parameters.
 
@@ -19,12 +17,31 @@ $ pip install imageio
 ($ pip install numpy)
 ```
 
-## Python Version
+## Usage
+
+### Folder to video
+
+Build a .mp4 file from a folder containing only .jpg or .png images.
 
 ![](/images/vm1.JPG?raw=true "Optional Title")
 
-The python file can be run as is. It is written in Python3 using only the standard libraries.
-This project, thus, was also an excercise in translating program code between different languages.
+Parameters to be chosen:
+
+- `max length`: the maximal number of distinct images that are loaded from the image folder. 
+- `size`: specified video resolution, eg. `1024x1000`. Larger images will be cropped.
+- `fps`: the number of images shown in one second of video
+- `repeat`: repeats ever image n times. 
+
+Example: if fps=1 and repeat=5, a video is created that shows every image for 5 seconds.
+
+### Video to folder
+
+Extract all individual frames of a video file and save them as .png to a folder.
+
+![](/images/vm2.JPG?raw=true "Optional Title")
+
+This mode has no parameters to specify.
+
 
 ## Meta
 

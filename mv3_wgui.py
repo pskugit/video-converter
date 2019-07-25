@@ -1,52 +1,37 @@
-import sys
-import cv2
-import time
-import tqdm
 import os
-import numpy as np
-import imageio
-from os import listdir
-from os.path import isfile, join
+import sys
+import time
+import traceback
 from pathlib import Path
+from os.path import isfile, join
 
+#external packages
+import cv2
+import tqdm
+import imageio
+import numpy as np
+from PyQt5 import QtWidgets, QtCore, QtGui, uic
 
-from PyQt5.QtWidgets import QMainWindow, QLabel,QGridLayout, QWidget, QPushButton, QFileDialog, QApplication, QProgressBar
-from PyQt5.QtCore import QSize, Qt, QObject, QThread, pyqtSignal, pyqtSlot
-from PyQt5 import QtGui, QtCore, uic
-import traceback,sys
-
-sys.path.insert(0, 'D:\\pj-val-ml')
-print(sys.path)
-from pjval_ml.utils.mpc2_5.crbc2ispluv import CrbcToIspLuv, ispLuvToSRgb
-
-
-if QtCore.QT_VERSION>=0x50501:
-	def excepthook(type_,value,traceback_):
-		traceback.print_exception(type_,value,traceback_)
-		QtCore.qFatal('')
-sys.excepthook=excepthook
-
-class Worker(QObject):
+class Worker(QtCore.QObject):
+    '''
+    Worker thread that handles the major program load. Allowing the gui to still be responsive.
+    '''
     def __init__(self, filenames, config):
         super(Worker, self).__init__()
-#        self.call_f1.connect(self.f1)
-#        self.call_f2.connect(self.f2)
-
         self.filenames = filenames
         self.config = config
 
-    progress = pyqtSignal(float)
-    call_video = pyqtSignal()
-    call_images = pyqtSignal()
-    finished = pyqtSignal()
+    progress = QtCore.pyqtSignal(float)
+    call_video = QtCore.pyqtSignal()
+    call_images = QtCore.pyqtSignal()
+    finished = QtCore.pyqtSignal()
 
-    @pyqtSlot()
+    @QtCore.pyqtSlot()
     def run(self, some_string_arg):
         self.function(*self.args, **self.kwargs)
 
-    @pyqtSlot()
+    @QtCore.pyqtSlot()
     def images(self):
-
         cap = cv2.VideoCapture(self.filenames)
         length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         fps = cap.get(5)
@@ -66,11 +51,10 @@ class Worker(QObject):
             ret = True
             i = 1
             while ret:
-                print("while ret")
                 filename = str(i).rjust(width,"0")+'.png'
                 for _ in range(skipframes+1):
                     ret, frame = cap.read()
-                print(ret)
+                #print(ret)
                 if ret:
                     cv2.imwrite(dir+"\\"+filename, frame)
                     print("saves", dir+"\\"+filename)
@@ -80,70 +64,71 @@ class Worker(QObject):
         finally:
             cap.release()
 
-    @pyqtSlot()
+    @QtCore.pyqtSlot()
     def video(self):
         #### PARAMETERS
-        container = ".mp4"
-        codec = "HEVC"
+        container = ".mp4" #".avi" #
+        codec = "HEVC" #"DIVX" #
         if self.config["max_length"] > 0:
             max_length = min(self.config["max_length"], len(self.filenames))
         else:
             max_length = len(self.filenames)
-        size = self.config["size"]  # bluefox: (2464, 2056) 0,8344.....   0,5625
+        size = self.config["size"]
         repeatframe = self.config["repeatframe"]
         fps = self.config["fps"]
-        is_ccda4 = self.config["is_ccda4"]
 
         self.filenames = self.filenames[:max_length]
         name = "video_" + time.strftime("%y_%m_%d_%H-%M-%S", time.localtime()) + container
         output_path = "videos/" + name
+
+        if size[0] == 0 and size[1] == 0:
+            tframe = cv2.imread(self.filenames[0])
+            (oldh, oldw, depth) = tframe.shape
+            size = (oldw, oldh)
+            print(tframe.shape)
+        print("SIZE")
+        print(size)
         output = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*codec), fps, size)
+
         length = len(self.filenames)
         for idx, file in tqdm.tqdm(enumerate(self.filenames)):
-            if is_ccda4:
-                frame = imageio.imread(file)
-                ispL, ispUv = CrbcToIspLuv(frame)()
-                frame = ispLuvToSRgb(ispL, ispUv)
-                frame = (frame * 255).astype(np.uint8)
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            else:
-            # frame = cv2.resize(frame, None, fx=0.5, fy=0.5)
-            # frame = cv2.resize(frame, size, interpolation=cv2.INTER_LINEAR)
-                frame = cv2.imread(file)
-                (oldw, oldh, depth) = frame.shape
-                woffset = (oldw - size[0]) // 2
-                hoffset = (oldh - size[1]) // 2
-                frame = frame[hoffset:hoffset + size[1], woffset:woffset + size[0]]
-
+            frame = cv2.imread(file)
+            #resizing
+            (oldh, oldw, depth) = frame.shape
+            print(frame.shape)
+            woffset = (oldw - size[0]) // 2
+            hoffset = (oldh - size[1]) // 2
+            print(woffset)
+            print(hoffset)
+            frame = frame[hoffset:hoffset + size[1], woffset:woffset + size[0]]
+            print("goes 1")
             for i in range(repeatframe):
-                # cv2.imshow('Image', frame)
-                # k = cv2.waitKey(0)
-                # if k == 27:
-                #     cv2.destroyAllWindows()
+                print("goes 2")
                 output.write(frame)
+                print(frame.shape)
             self.progress.emit(100 * ((idx + 1) / length))
         output.release()
         print("Saved Video in", output_path)
         print("Number of frames:", len(self.filenames) * repeatframe)
         self.finished.emit()
 
-class HelloWindow(QMainWindow):
+class HelloWindow(QtWidgets.QMainWindow):
     def __init__(self):
-        QMainWindow.__init__(self)
-        self.setMinimumSize(QSize(440, 180))
+        QtWidgets.QMainWindow.__init__(self)
+        self.setMinimumSize(QtCore.QSize(440, 180))
         uic.loadUi("mv3_gui.ui",self)
         self.setWindowTitle("Videomaker")
 
         self.mv_button.setEnabled(False)
         self.config = {
-            "max_length": 60,
-            "size": (1280, 720),  # bluefox: (2464, 2056) 0,8344.....   0,5625
-            "repeatframe": 1,
-            "fps": 15,
-            "is_ccda4": False,
+            "max_length": 600,
+            "size": (0, 0),
+            "repeatframe": 10,
+            "fps": 10,
         }
         self.mode = "f2v"
         self.progress.setValue(0)
+        self.set_defaults()
         self.update_config()
         self.change_mode(0)
         self.setup_connections()
@@ -157,14 +142,13 @@ class HelloWindow(QMainWindow):
         self.size2_le.textChanged.connect(self.update_config)
         self.repeatframe_le.textChanged.connect(self.update_config)
         self.fps_le.textChanged.connect(self.update_config)
-        self.ccda4_checkbox.clicked.connect(self.update_config)
         self.mode_slider.valueChanged.connect(self.change_mode)
 
-    @pyqtSlot(float)
+    @QtCore.pyqtSlot(float)
     def on_progress(self, value):
         self.progress.setValue(value)
 
-    @pyqtSlot()
+    @QtCore.pyqtSlot()
     def on_finish(self):
         self.data_button.setEnabled(True)
         self.mode_slider.setEnabled(True)
@@ -176,13 +160,13 @@ class HelloWindow(QMainWindow):
         Sets the list of selected files as content to the line edit.
         """
         self.progress.setValue(0)
-        dlg = QFileDialog()
+        dlg = QtWidgets.QFileDialog()
         if self.mode == "f2v":
             folder = dlg.getExistingDirectory(self, 'Select video folder', os.getcwd())
             self.data_label.setText(folder)
             try:
                 print("Loading data...")
-                files = listdir(folder)
+                files = os.listdir(folder)
             except FileNotFoundError:
                 print("...no data.")
                 return
@@ -212,7 +196,7 @@ class HelloWindow(QMainWindow):
         self.mv_button.setEnabled(False)
         self.data_button.setEnabled(False)
         self.mode_slider.setEnabled(False)
-        self.my_thread = QThread()
+        self.my_thread = QtCore.QThread()
         self.my_thread.start()
         if self.mode == "f2v":
             self.save_movie()
@@ -235,7 +219,7 @@ class HelloWindow(QMainWindow):
         self.my_worker.finished.connect(self.on_finish)
         self.my_worker.call_video.emit()
 
-    @pyqtSlot(int)
+    @QtCore.pyqtSlot(int)
     def change_mode(self, value):
         self.progress.setValue(0)
         self.filenames = []
@@ -253,14 +237,21 @@ class HelloWindow(QMainWindow):
             self.mv_button.setText("make image folder")
             self.config_widget.hide()
 
+    def set_defaults(self):
+        self.max_length_le.setText(str(self.config["max_length"]))
+        self.size1_le.setText(str(self.config["size"][0]))
+        self.size2_le.setText(str(self.config["size"][1]))
+        self.repeatframe_le.setText(str(self.config["repeatframe"]))
+        self.fps_le.setText(str(self.config["fps"]))
+
+
     def update_config(self):
         try:
             self.config = {
                 "max_length": int(self.max_length_le.text()),
-                "size": (int(self.size1_le.text()), int(self.size2_le.text())),  # bluefox: (2464, 2056) 0,8344.....   0,5625
+                "size": (int(self.size1_le.text()), int(self.size2_le.text())),
                 "repeatframe": int(self.repeatframe_le.text()),
                 "fps": float(self.fps_le.text()),
-                "is_ccda4": self.ccda4_checkbox.isChecked(),
             }
         except ValueError:
             print("WARNING: invalid value in configurations")
@@ -268,7 +259,7 @@ class HelloWindow(QMainWindow):
             print("new cofig \n", self.config)
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
+    app = QtWidgets.QApplication(sys.argv)
     app.setWindowIcon(QtGui.QIcon('icons/favicon.svg'))
     mainWin = HelloWindow()
     mainWin.show()

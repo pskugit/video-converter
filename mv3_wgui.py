@@ -21,17 +21,17 @@ class Worker(QtCore.QObject):
         self.filenames = filenames
         self.config = config
 
+    #QT signals - specify the method that the worker will be executing
     progress = QtCore.pyqtSignal(float)
     call_video = QtCore.pyqtSignal()
     call_images = QtCore.pyqtSignal()
     finished = QtCore.pyqtSignal()
 
     @QtCore.pyqtSlot()
-    def run(self, some_string_arg):
-        self.function(*self.args, **self.kwargs)
-
-    @QtCore.pyqtSlot()
     def images(self):
+        '''
+        function to convert the video to an image folder
+        '''
         cap = cv2.VideoCapture(self.filenames)
         length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         fps = cap.get(5)
@@ -66,6 +66,9 @@ class Worker(QtCore.QObject):
 
     @QtCore.pyqtSlot()
     def video(self):
+        '''
+        function to convert the image folder to video
+        '''
         #### PARAMETERS
         container = ".mp4" #".avi" #
         codec = "HEVC" #"DIVX" #
@@ -76,11 +79,9 @@ class Worker(QtCore.QObject):
         size = self.config["size"]
         repeatframe = self.config["repeatframe"]
         fps = self.config["fps"]
-
         self.filenames = self.filenames[:max_length]
         name = "video_" + time.strftime("%y_%m_%d_%H-%M-%S", time.localtime()) + container
         output_path = "videos/" + name
-
         if size[0] == 0 and size[1] == 0:
             tframe = cv2.imread(self.filenames[0])
             (oldh, oldw, depth) = tframe.shape
@@ -89,7 +90,6 @@ class Worker(QtCore.QObject):
         print("SIZE")
         print(size)
         output = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*codec), fps, size)
-
         length = len(self.filenames)
         for idx, file in tqdm.tqdm(enumerate(self.filenames)):
             frame = cv2.imread(file)
@@ -112,7 +112,7 @@ class Worker(QtCore.QObject):
         print("Number of frames:", len(self.filenames) * repeatframe)
         self.finished.emit()
 
-class HelloWindow(QtWidgets.QMainWindow):
+class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         QtWidgets.QMainWindow.__init__(self)
         self.setMinimumSize(QtCore.QSize(440, 180))
@@ -134,9 +134,11 @@ class HelloWindow(QtWidgets.QMainWindow):
         self.setup_connections()
 
     def setup_connections(self):
+        '''
+        initializes all QT signal and slot connections
+        '''
         self.data_button.clicked.connect(self.filedialog_folder)
         self.mv_button.clicked.connect(self.action)
-
         self.max_length_le.textChanged.connect(self.update_config)
         self.size1_le.textChanged.connect(self.update_config)
         self.size2_le.textChanged.connect(self.update_config)
@@ -193,6 +195,11 @@ class HelloWindow(QtWidgets.QMainWindow):
                 self.mv_button.setEnabled(True)
 
     def action(self):
+        '''
+        function that is executed on click of the major start button
+        calls either make_images() or save_movie() depending on the active mode.
+        '''
+
         self.mv_button.setEnabled(False)
         self.data_button.setEnabled(False)
         self.mode_slider.setEnabled(False)
@@ -204,6 +211,9 @@ class HelloWindow(QtWidgets.QMainWindow):
             self.make_images()
 
     def make_images(self):
+        '''
+        sends the command to the worker thread to build an image folder
+        '''
         self.my_worker = Worker(self.filenames, None)
         self.my_worker.moveToThread(self.my_thread)
         self.my_worker.call_images.connect(self.my_worker.images)
@@ -212,6 +222,9 @@ class HelloWindow(QtWidgets.QMainWindow):
         self.my_worker.call_images.emit()
 
     def save_movie(self):
+        '''
+        sends the command to the worker thread to build and save a video file
+        '''
         self.my_worker = Worker(self.filenames, self.config)
         self.my_worker.moveToThread(self.my_thread)
         self.my_worker.call_video.connect(self.my_worker.video)
@@ -221,6 +234,9 @@ class HelloWindow(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot(int)
     def change_mode(self, value):
+        '''
+        switches mode and view betwwen f2v (folder2video) and v2f (video2folder)
+        '''
         self.progress.setValue(0)
         self.filenames = []
         self.mv_button.setEnabled(False)
@@ -238,6 +254,9 @@ class HelloWindow(QtWidgets.QMainWindow):
             self.config_widget.hide()
 
     def set_defaults(self):
+        '''
+        sets the configuration to the hard coded default values
+        '''
         self.max_length_le.setText(str(self.config["max_length"]))
         self.size1_le.setText(str(self.config["size"][0]))
         self.size2_le.setText(str(self.config["size"][1]))
@@ -246,6 +265,9 @@ class HelloWindow(QtWidgets.QMainWindow):
 
 
     def update_config(self):
+        '''
+        reads the test lines to update the internal configuration
+        '''
         try:
             self.config = {
                 "max_length": int(self.max_length_le.text()),
@@ -261,6 +283,6 @@ class HelloWindow(QtWidgets.QMainWindow):
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     app.setWindowIcon(QtGui.QIcon('icons/favicon.svg'))
-    mainWin = HelloWindow()
+    mainWin = MainWindow()
     mainWin.show()
     sys.exit(app.exec_())

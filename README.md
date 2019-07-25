@@ -23,7 +23,7 @@ $ pip install imageio
 
 Build a .mp4 file from a folder containing only .jpg or .png images.
 
-![](/images/vm2.JPG?raw=true "Optional Title")
+![](/images/vm1.JPG?raw=true "Optional Title")
 
 Parameters to be chosen:
 

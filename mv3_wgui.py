@@ -86,26 +86,27 @@ class Worker(QtCore.QObject):
             tframe = cv2.imread(self.filenames[0])
             (oldh, oldw, depth) = tframe.shape
             size = (oldw, oldh)
+            print("Using imput frame shape of:", size)
             print(tframe.shape)
-        print("SIZE")
-        print(size)
+        print("\nVideo format")
+        print("resolution:",size)
+        print("container:",container)
+        print("codec:",codec)
+        print("output to",output_path)
         output = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*codec), fps, size)
         length = len(self.filenames)
         for idx, file in tqdm.tqdm(enumerate(self.filenames)):
             frame = cv2.imread(file)
+            if frame is None:
+                print("not an image file:",file)
+                continue
             #resizing
             (oldh, oldw, depth) = frame.shape
-            print(frame.shape)
             woffset = (oldw - size[0]) // 2
             hoffset = (oldh - size[1]) // 2
-            print(woffset)
-            print(hoffset)
             frame = frame[hoffset:hoffset + size[1], woffset:woffset + size[0]]
-            print("goes 1")
             for i in range(repeatframe):
-                print("goes 2")
                 output.write(frame)
-                print(frame.shape)
             self.progress.emit(100 * ((idx + 1) / length))
         output.release()
         print("Saved Video in", output_path)
@@ -121,10 +122,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.mv_button.setEnabled(False)
         self.config = {
-            "max_length": 600,
+            "max_length": 0,
             "size": (0, 0),
-            "repeatframe": 10,
-            "fps": 10,
+            "repeatframe": 1,
+            "fps": 30,
         }
         self.mode = "f2v"
         self.progress.setValue(0)

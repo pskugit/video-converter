@@ -1,0 +1,5 @@
+opencv-python
+PyQt5 
+tqdm
+imageio
+numpy

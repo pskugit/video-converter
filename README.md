@@ -6,15 +6,10 @@ Or to convert an image folder into a video file given the set parameters.
 
 ## Prerequisites
 
-Written in Python3, the program has a few external libraries
-They are all accessible through pip.
+Written in Python3, the program has a few external libraries.  
 
 ```
-$ pip install opencv-python
-$ pip install PyQt5 
-$ pip install tqdm
-$ pip install imageio
-($ pip install numpy)
+pip install -r requirement.txt
 ```
 
 ## Usage
